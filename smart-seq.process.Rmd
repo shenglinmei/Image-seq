@@ -1,0 +1,274 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+load data and annotation
+```{r}
+dcount = readRDS('count.rds')
+ano = readRDS('ano.rds')
+groups = readRDS('fraction.rds')
+```
+
+
+
+```{r}
+p21 = basicP2proc(dcount,min.cells.per.gene = 0,n.cores = 5)
+```
+
+
+
+```{r}
+df = read.csv('CellCycleGeneList_1134.txt',sep='\t',header=T)
+
+```
+
+
+
+
+
+```{r}
+#gsano = readRDS('gene.ano.rds')
+
+alls = NULL
+gl = list()
+for (i in c("M/G1"  ,   "G2"     ,  "G2/M"  ,   "G1/S"  ,   "S phase")) {
+  tmp1 = df[df$PHASE == i, ]
+  gs = apply(tmp1, 1, function(x)
+  strsplit(x['NAME'], ' ')[[1]][1])
+  gs = gs[gs != '']
+  index12 = (gs %in% gsano$Gene_Name)
+  gs = gs[index12]
+  index12 = match(gs, gsano$Gene_Name)
+  gs2 = Toch(gsano[index12, 'mouse_homolog_gene'])
+
+  gs2 = intersect(gs2, colnames(p21$counts))
+  gl[[i]] = gs2
+  tmp = as.matrix(p21$counts[, gs2]) %>% rowMeans
+  alls = cbind(alls, score)
+}
+
+```
+
+
+```{r}
+colnames(alls) = c("M/G1"  ,   "G2"     ,  "G2/M"  ,   "G1/S"  ,   "S phase" )
+a=pheatmap::pheatmap(alls)
+
+clu = a$tree_row
+trr=cutree(clu,k=3)
+cluster = paste('cluster',trr,sep='')
+names(cluster) = names(trr)
+```
+
+
+```{r fig.width=4, fig.height= 4}
+annot=data.frame('cluster'=cluster,'group'=groups[names(cluster)],'Dpp4'=p21$counts[names(cluster),'Dpp4'],row.names=names(cluster))
+x1 = alls[a$tree_row$order,a$tree_col$order]
+pheatmap::pheatmap(x1[,2:5],annotation_row = annot,cluster_rows = F, cluster_cols = F,show_rownames = F,height=4,width=4.2, annotation_colors = anoc,border_color = "NA")
+
+```
+
+
+
+
+```{r}
+library(Seurat)
+
+
+# A list of cell cycle markers
+s.genes <- gl$`S phase`
+g2m.genes <- gl$`G2/M`
+
+
+# Create our Seurat object and complete the initalization steps
+marrow <- CreateSeuratObject(counts = dcount)
+marrow <- NormalizeData(marrow)
+marrow <- FindVariableFeatures(marrow, selection.method = "vst")
+marrow <- ScaleData(marrow, features = rownames(marrow))
+```
+
+
+
+```{r}
+marrow <- RunPCA(marrow, features = VariableFeatures(marrow), ndims.print = 1:10, nfeatures.print = 10)
+
+```
+
+```{r}
+marrow <- CellCycleScoring(marrow, s.features = s.genes, g2m.features = g2m.genes, set.ident = TRUE)
+
+```
+
+
+```{r}
+marrow <- RunUMAP(marrow, dims = 1:5)
+
+```
+
+```{r}
+DimPlot(marrow, reduction = "umap")
+
+```
+
+```{r}
+cluster = marrow@meta.data$seurat_clusters
+names(cluster) = rownames(marrow@meta.data)
+```
+
+
+
+```{r}
+library(dplyr)
+pbmc.markers <- FindAllMarkers(marrow, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
+pbmc.markers %>% group_by(cluster) %>% top_n(n = 2, wt = avg_log2FC)
+pbmc.markers =pbmc.markers[pbmc.markers$p_val_adj<0.05,]
+top10 <- pbmc.markers %>% group_by(cluster) %>% top_n(n = 10, wt = avg_log2FC)
+
+
+#write.csv(top10,'top20.csv',quote=F)
+```
+
+top upregulated genes
+```{r}
+p = DoHeatmap(pbmc, features = top10$gene,group.colors = c('green4','royalblue4','goldenrod1')) 
+#ggsave('cluster.seurate.pdf',p,height=8,width=5)
+p
+```
+
+
+
+
+```{r warning= FALSE}
+exp = pbmc@assays$RNA@data
+a1=vlnplot('Dpp4',cluster,exp,colp=NULL,pt.size=0.1,height=0.6)
+a1+ ggpubr::stat_compare_means(label = "p.signif", label.x = 1.5)
+```
+
+
+
+
+
+
+```{r}
+
+
+source('../lib.r')
+
+treat = 'P'
+ref='NP'
+
+group = groups
+group=group[group %in% c(treat,ref)]
+group[group!=ref]='treat'
+group[group==ref]='control'
+res1=runDE(dcount,group,ref='control')
+
+```
+
+
+
+```{r}
+res1[1:5,]
+```
+
+
+```{r fig.width=4.4, fig.height= 4}
+
+DotPlot.DE = function(de1,num=10,ylab='Treat vs control',gn1=NULL,gn2=NULL,orderpvalue=NULL,fc=2,pval=NULL){
+  library(ggplot2)
+  library(ggrepel)
+  
+  tmp=de1
+  tmp=tmp[!is.na(tmp$pvalue),]
+  tmp$score=-log10(tmp$padj)
+  if (!is.null(pval)){
+    tmp$score=-log10(tmp$pvalue)
+  }
+  
+  gg=data.frame('log2FoldChange'=tmp$log2FoldChange,'score'=tmp$score,'Z'=tmp$Z,'name'=rownames(tmp),
+                'padj'=tmp$padj,'pvalue'=tmp$pvalue,'score2'=tmp$score*sign(tmp$log2FoldChange))
+  p=ggplot(gg,aes(y=score,x=log2FoldChange))
+  p=p+geom_point(shape=".",alpha=1/1,size = 1,color='grey')+theme_classic()
+  p=p+labs(y=ylab)
+  gg$score2=sign(gg$log2FoldChange)*gg$score
+  rownames(gg)=gg$name 
+  
+  if (is.null(orderpvalue)){
+    t1=gg[order(gg$log2FoldChange),]
+    t2=gg[order(gg$log2FoldChange,decreasing=TRUE),]
+    
+  }else{
+    t1=gg[order(gg$score2),]
+    t2=gg[order(gg$score2,decreasing=TRUE),]
+    
+  }
+  
+  t1=t1[t1$log2FoldChange<(-1),]
+  n1=rownames(t1)[1:num]
+  
+  t2=t2[t2$log2FoldChange>1,]
+  n2=rownames(t2)[1:num]
+  
+  if (!is.null(gn1)){
+    n1=c(n1,gn1)
+  }
+  if (!is.null(gn2)){
+    n1=c(n2,gn2)
+  } 
+  
+  
+  
+  p=p+geom_text_repel(
+    data = gg[gg$name %in% n1,],
+    aes(label = name),
+    size = 3,
+    box.padding = unit(0.35, "lines"),
+    point.padding = unit(0.3, "lines"),
+    color='blue'
+  )
+  
+  
+  
+  
+  p=p+geom_text_repel(
+    data = gg[gg$name %in% n2,],
+    aes(label = name),
+    size = 3,
+    box.padding = unit(0.35, "lines"),
+    point.padding = unit(0.3, "lines"),
+    color='red1'
+  )
+  
+  
+  p=p+ geom_point(data = subset(gg,(log2FoldChange< (-fc) & pvalue < 0.01)),shape=".",alpha=1/1,size = 2,color='blue')
+  p=p+ geom_point(data = subset(gg,(log2FoldChange>fc & pvalue < 0.01)),shape=".",alpha=1/1,size = 2,color='red1')
+  
+  return(p)          
+  
+}
+
+DotPlot.DE(res1,pval=TRUE,ylab='-10log padj')
+```
+
+
+
+```{r}
+
+ref='NP'
+treat = 'P-PNP'
+
+group = groups
+group[group %in% c('P','PNP')]='P-PNP'
+
+table(group)
+
+group=group[group %in% c(treat,ref)]
+group[group!=ref]='treat'
+group[group==ref]='control'
+res1=runDE(dcount,group,ref='control')
+
+res1[1:5,]
+```
+
+
