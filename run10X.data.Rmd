@@ -1,0 +1,332 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+Major cell annotation 
+
+```{r fig.width= 4, fig.height=4}
+set.seed(3)
+annot  = readRDS('annot.Nov.rds') %>% Toch()
+
+annot=as.factor(annot)
+annot.pal <- setNames(sample(rainbow(length(levels(annot)),v=0.75,s=0.65)),levels(annot));
+#annot.pal = readRDS('annot.pal.rds')
+
+annot.pal['Monocyte progenitor'] = "blue"
+annot.palf <- function(n) return(annot.pal)
+
+a2=con$plotGraph(alpha=0.2,size=0.1,groups=annot,font.size=c(3.9,4.3),plot.na=F,palette=annot.palf)
+a2
+```
+
+
+Marker gene expression 
+```{r fig.width= 5.5, fig.height=8}
+
+library(cowplot)
+
+gs=c(
+  'Ms4a1,Ly6d,Cd79a,CD74,
+  Mcpt8, Prss34, Ms4a2,
+  Bst2, Irf8, Siglech, Cox6a2,
+  Car2, Hemgn, Ctse, Cpox, Atpif,
+  Cebpe, Fcnb,
+  Cd34, Prtn3, Mpo, Elane, Mpl,
+  S100a4, Ccl6, Ctss, Lyz2,
+  Ly6c2, S100a10,
+  Mmp8, Ifitm6, S100a11, S100a8, S100a9,
+  Vpreb1, Vpreb3, Dntt, Mzb,
+  Cd3d, Ccl5, Thy1, Cd3g, Il7r')
+
+gs = strsplit(gsub('\n','',gs),'[,]')[[1]]
+gs = gsub(' ','',gs)
+cname=names(annot)
+aexp=t(p2all$counts)
+gs=intersect(gs,rownames(aexp))
+#cname=intersect(cname,colnames(aexp))
+p=Dotfig(gs,aexp[,cname],annot[cname],cols = c("blue","white", "red"))+xlab('')+ylab('')
+p
+
+ggsave('F2E.marker.pdf',p,height = 10,width=7)
+
+```
+
+```{r}
+s.sampType = Toch(s.sampType)
+s.sampType[s.sampType=='Local']='Image-seq'
+s.sampType[s.sampType=='TET-AR']='WCBM'
+s.sampType = as.factor(s.sampType)
+s.sampType = s.sampType[names(annot)]
+```
+
+
+
+```{r fig.width= 4, fig.height=4}
+
+a2=con$plotGraph(alpha=0.2,size=0.1,groups=annot,font.size=c(3.9,4.3),plot.na=F,palette=annot.palf)
+a3=con$plotGraph(groups=s.samp, mark.groups=F, alpha=0.05,size=0.1, show.legend=T,plot.na=F)
+a4=con$plotGraph(groups=s.sampType, mark.groups=F, alpha=0.05,size=0.1, show.legend=T,plot.na=F,palette=function(n) return(rev(rainbow(2))[1:n]))
+
+a3=a3+ theme(legend.position=c(0.08,0.79),legend.title=element_text(size=0), legend.text=element_text(size=10), legend.key.size = unit(0.8, 'lines'))+ guides(color = guide_legend(override.aes = list(size=3.4,alpha=1)))
+a4=a4+ theme(legend.position=c(0.82,0.92),legend.title=element_text(size=0), legend.text=element_text(size=12), legend.key.size = unit(0.8, 'lines'))+ guides(color = guide_legend(override.aes = list(size=4,alpha=1)))
+
+
+a3
+a4
+
+```
+
+
+
+```{r fig.width= 8, fig.height=4}
+
+
+f1=names(s.sampType[s.sampType=='WCBM'])
+f2=names(s.sampType[s.sampType=='Image-seq'])
+
+a1=con$plotGraph(alpha=0.3,size=0.15,groups=annot[f1],font.size=c(3.9,4.3),plot.na=F,palette=annot.palf,title='WCBM')
+a2=con$plotGraph(alpha=0.3,size=0.15,groups=annot[f2],font.size=c(3.9,4.3),plot.na=F,palette=annot.palf,title='Image-seq')
+  
+
+b = cowplot::plot_grid(plotlist = list(a1,a2), ncol = 2, nrow = 1)
+  
+b
+  
+  
+```
+
+
+cell porportions
+```{r fig.width= 7, fig.height=4}
+
+samp=con$getDatasetPerCell()
+
+cname=intersect(names(annot),names(samp))
+
+ano2=data.frame('Cell'=annot[cname],'SampleType'=samp[cname])
+
+# Annotation vs sample
+tmp2 <- acast(ano2, Cell ~ SampleType, fun.aggregate=length)
+tmp3 <- (sweep(tmp2, 2, colSums(tmp2), FUN='/'))
+tmp4 <- melt(tmp3)
+#head(tmp4)
+names(tmp4) <- c('cell', 'sample','pc.of.sample')
+
+
+p=ggplot(tmp4, aes(x=sample, fill=cell, y = pc.of.sample)) +
+  geom_bar(stat='identity', position='fill') +
+  scale_fill_manual(values=annot.pal)+ coord_flip()+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1),
+        axis.title.y=element_blank(),
+        axis.title.x=element_blank())
+
+p=p  +theme(axis.text.x = element_blank(), axis.ticks = element_blank(),panel.background = element_blank())
+p
+```
+
+
+
+```{r fig.width= 5, fig.height=4}
+
+
+cname = names(annot)
+cname = intersect(cname,names(s.sampType))
+ano2=data.frame('Cell'=annot[cname],'SampleType'=s.sampType[cname])
+
+# Annotation vs sample
+tmp2 <- acast(ano2, Cell ~ SampleType, fun.aggregate=length)
+tmp3 <- (sweep(tmp2, 2, colSums(tmp2), FUN='/'))
+tmp4 <- melt(tmp3)
+#head(tmp4)
+names(tmp4) <- c('cell', 'sample','pc.of.sample')
+
+
+p=ggplot(tmp4, aes(y=pc.of.sample, fill=cell, x = sample)) +theme_bw()+
+  geom_bar(stat='identity', position='fill') +
+  scale_fill_manual(values=annot.pal)+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1),
+        axis.title.y=element_blank(),panel.border = element_blank(),
+        axis.title.x=element_blank())
+
+p
+```
+
+
+```{r}
+p2all = readRDS('raw.v2_p2combined.rds')
+```
+
+
+
+```{r}
+fcol=rainbow(2)
+names(fcol)=unique(s.sampType)
+fcol
+```
+
+
+Comparision of data quality; total UMI per cell
+```{r fig.width= 4, fig.height=4}
+
+
+cname = intersect(names(s.sampType),rownames(p2all$misc$rawCounts))
+x=t(p2all$misc$rawCounts)[,cname]
+cellano=s.sampType[cname]
+
+cell=cellano[colnames(x)]
+cols=colSums(as.matrix(x))
+expG=apply(x,2,function(x) length(x[x>0]))
+
+
+dat2=data.frame('cells'=cell,'y'=log10(cols))
+
+p1=ggplot(dat2, aes(x=cells, y=y,fill=cell)) + 
+  geom_violin(outlier.shape = -1,width=0.5,position=position_dodge(width=0.1))+theme_classic()+
+  #geom_point(data = dat1,size=0.5,color=adjustcolor(1,alpha=0.3), position = position_jitterdodge(0.3))+
+  theme(axis.title.x=element_blank(),
+        axis.text.x= element_text(angle = 45, hjust = 1))+
+  theme( axis.text.y = element_text(angle = 90, hjust = 0.5))+ylab('total UMI per cell (log10)')+theme(legend.position = 'none')+
+  scale_fill_manual(values=fcol)
+
+p1
+```
+
+number of expressed genes per cell
+```{r fig.width= 4, fig.height=4}
+
+dat1=data.frame('cells'=cell,'y'=expG)
+
+p1=ggplot(dat1, aes(x=cells, y=y,fill=cell)) + theme_classic()+
+  geom_violin(outlier.shape = -1,width=0.5,position=position_dodge(width=0.1))+
+  #geom_point(data = dat1,size=0.5,color=adjustcolor(1,alpha=0.3), position = position_jitterdodge(0.3))+
+  theme(axis.title.x=element_blank(),
+        axis.text.x= element_text(angle = 45, hjust = 1))+
+  theme( axis.text.y = element_text(angle = 90, hjust = 0.5))+ylab('number of expressed genes')+theme(legend.position = 'none')+
+  scale_fill_manual(values=fcol)
+
+p1
+
+
+```
+
+
+
+
+
+
+
+```{r}
+nLocal = names(s.sampType[s.sampType=='Image-seq'])
+nW = names(s.sampType[s.sampType=='WCBM'])
+deL=p2all$getDifferentialGenes(groups=annot[nLocal],z.threshold = 2)
+deW=p2all$getDifferentialGenes(groups=annot[nW],z.threshold = 2)
+
+```
+
+
+
+```{r}
+gl1 <- unname(unlist(lapply(deL, function(x) {
+  x=x[x$Z>0,]
+  x <- x[order(x$Z,decreasing=T),]
+  head(rownames(x),n=200)
+})))
+
+gl2 <- unname(unlist(lapply(deW, function(x) {
+  x=x[x$Z>0,]
+  x <- x[order(x$Z,decreasing=T),]
+  head(rownames(x),n=200)
+})))
+```
+
+
+
+```{r}
+gs=unique(c(gl1,gl2))
+length(gs)
+```
+
+
+```{r}
+cname = intersect(names(annot),names(s.sampType))
+ano2 = paste(annot[cname],s.sampType[cname])
+names(ano2) = cname
+
+
+
+t.exp=p2all$counts[names(ano2),gl1]
+
+cma2=apply(t.exp,2,function(x) tapply(x,ano2,mean))
+#dim(cma2)
+
+cma.cor.spearman <- cor(as.matrix(t(cma2)),method='spearman')
+hc.spearman2 <- hclust(as.dist(1-cma.cor.spearman))
+
+```
+
+
+
+
+```{r}
+cma.cor.spearman2 = cma.cor.spearman[grepl('Image-seq',rownames(cma.cor.spearman)),grepl('WCBM',colnames(cma.cor.spearman))]
+
+```
+
+
+
+```{r}
+n1 = rownames(cma.cor.spearman2)
+n2=colnames(cma.cor.spearman2)
+n1=gsub(' Image-seq','',n1)
+n2=gsub(' WCBM','',n1)
+rownames(cma.cor.spearman2) = n1
+colnames(cma.cor.spearman2) = n2
+```
+
+```{r fig.width= 7, fig.height=6}
+
+pheatmap(cma.cor.spearman2,treeheight_row=25,treeheight_col=25,height=5,width=5.2)
+
+```
+
+
+```{r}
+annot.pal['AML']='red'
+
+annot.palf <- function(n) return(annot.pal)
+
+
+```
+
+
+
+GFP expression in High Burden and Low Burden mice
+```{r fig.width= 4, fig.height=4}
+
+#p21 High Burden
+#p22 Low Burden
+
+a1=embeddingPlot(p22$embeddings$PCA$tSNE, groups = ano2,plot.theme = theme,font.size = c(4.4,5.5),palette = annot.palf)
+a2=embeddingPlot(p22$embeddings$PCA$tSNE, colors = p22$counts[,'egfp'],plot.theme = theme)
+
+a3=embeddingPlot(p21$embeddings$PCA$tSNE, groups = ano2,plot.theme = theme,font.size = c(4.4,5.5),palette = annot.palf)
+
+t=rep(0,nrow(p21$counts))
+names(t) = rownames(p21$counts)
+a4=embeddingPlot(p21$embeddings$PCA$tSNE, colors = t,plot.theme = theme)
+
+a1
+a2
+a3
+a4
+ggsave('high.ano.pdf',a1,height=4,width=4)
+ggsave('low.ano.pdf',a3,height=4,width=4)
+ggsave('high.GFP.pdf',a2,height=4,width=4)
+ggsave('low.GFP.pdf',a4,height=4,width=4)
+
+```
+
+
+
