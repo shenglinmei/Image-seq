@@ -5,12 +5,12 @@ Custom code that was used in this study can be found on github at https://github
 
 ## Software dependencies and operating systems 
 
-This protocol assumes users have a Unix-like operating system (i.e., Linux or MacOS X), with a bash shell or similar.
-Cellranger (version 3.0.2) https://support.10xgenomics.com/single-cell-gene-expression/software/overview/welcome
-Conos (version 1.4.6 ) https://github.com/kharchenkolab/conos
-hisat (version 2.2.0 ) http://daehwankimlab.github.io/hisat2/
-featureCounts (v1.6.4) https://www.rdocumentation.org/packages/Rsubread/versions/1.22.2/topics/featureCounts
-Seurat (version 4.0 ) https://satijalab.org/seurat/
+- This protocol assumes users have a Unix-like operating system (i.e., Linux or MacOS X), with a bash shell or similar.
+- Cellranger (version 3.0.2) https://support.10xgenomics.com/single-cell-gene-expression/software/overview/welcome
+- Conos (version 1.4.6 ) https://github.com/kharchenkolab/conos
+- hisat (version 2.2.0 ) http://daehwankimlab.github.io/hisat2/
+- featureCounts (v1.6.4) https://www.rdocumentation.org/packages/Rsubread/versions/1.22.2/topics/featureCounts
+- Seurat (version 4.0 ) https://satijalab.org/seurat/
 
 
 ## Installation 
