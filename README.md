@@ -16,7 +16,7 @@ Custom code that was used in this study can be found on github at https://github
 # Prepare GFP GRCm38 reference genome
 We added GFP sequence to GRCm38 genome following 10X cellranger mkref instruction
 https://support.10xgenomics.com/single-cell-gene-expression/software/pipelines/latest/advanced/references
-GFP Fasta file and gtf file for GFP are avivable at https://www.dropbox.com/sh/khycb36iafzu54t/AABt3AR1Iw4HJSxmHywMQDIEa?dl=0 
+GFP Fasta and gtf files are avivable at https://www.dropbox.com/sh/khycb36iafzu54t/AABt3AR1Iw4HJSxmHywMQDIEa?dl=0 
 
 cellranger mkref --nthreads=15 --genome=new_index --fasta=new.fa --genes=new.gtf
 
